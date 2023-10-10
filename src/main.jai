@@ -5,11 +5,19 @@ Note :: struct {
 }
 
 main :: () {
+    args := get_command_line_arguments();
+    if args.count < 2 {
+        log_error("Not enough arguments. % <file>\n", args[0]);
+        exit(1);
+    }
+
+    path := args[1];
+
     // @ToDo make this use arguments for path to file
     // @ToDo allow for giving a folder instead of a single file
-    content, success := read_entire_file("examples/foo.jai");
+    content, success := read_entire_file(path);
     if !success {
-        log_error("Failed to read file!\n");
+        log_error("Failed to read file from path '%'!\n", path);
         exit(1);
     }
 
