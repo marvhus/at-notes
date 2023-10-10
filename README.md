@@ -1,5 +1,5 @@
 # @Notes
-A too for finding @ notes in source files with C style comments (//)
+A tool for finding @ notes in source files with C style comments (//)
 
 ```console
 $ jai -version
