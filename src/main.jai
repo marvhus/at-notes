@@ -23,21 +23,28 @@ main :: () {
 
     notes: Table(string, [..]Note);
     init(*notes);
+    found_some := false;
     while content.count > 0 {
-        found, note := next_note(*content);
+        found, found_notes := next_note(*content);
 
         if !found continue;
 
-        if table_contains(*notes, note.name) {
-            found_notes_for_kind := table_find_pointer(*notes, note.name);
-            array_add(found_notes_for_kind, note);
-        } else {
-            found_notes_for_kind: [..]Note;
-            array_add(*found_notes_for_kind, note);
-            table_set(*notes, note.name, found_notes_for_kind);
+        for note: found_notes {
+            found_some = true;
+            if table_contains(*notes, note.name) {
+                found_notes_for_kind := table_find_pointer(*notes, note.name);
+                array_add(found_notes_for_kind, note);
+            } else {
+                found_notes_for_kind: [..]Note;
+                array_add(*found_notes_for_kind, note);
+                table_set(*notes, note.name, found_notes_for_kind);
+            }
         }
     }
-
+    if !found_some {
+        print("No @ notes found in file\n");
+        exit(0);
+    }
     for notes_for_kind, name: notes {
         print("@%\n", name);
         for note: notes_for_kind {
@@ -47,7 +54,7 @@ main :: () {
 }
 
 line_number: u32 = 1;
-next_note :: (content: *string) -> bool, Note {
+next_note :: (content: *string) -> bool, []Note {
     next :: (str: *string) {
         if str.count <= 0 return; // empty
         str.data += 1;
@@ -70,7 +77,7 @@ next_note :: (content: *string) -> bool, Note {
     }
 
     // check if at end of file
-    if content.count == 0 return false, .{};
+    if content.count == 0 return false, .[];
 
     // gather comment content
     text: [..]u8;
@@ -80,28 +87,40 @@ next_note :: (content: *string) -> bool, Note {
     }
 
     // extract note name
-    // @ToDo suppeort multiple notes in same comment
     reading_note := false;
+    names: [..]string;
     name: [..]u8;
     for c: text {
         if reading_note {
             c = to_lower(c); // ignore case
-            if !is_alpha(c) break; // end of note
-            array_add(*name, c);
-        } else {
-            if c == #char "@" then reading_note = true; // start of note
+            if !is_alpha(c) {
+                // add note and reset name array (so that there can be multiple in one)
+                array_add(*names, copy_string(to_string(name)));
+                array_reset(*name);
+                reading_note = false;
+            } else {
+                array_add(*name, c);
+            }
         }
+        if c == #char "@" then reading_note = true; // start of note
     }
-    if name.count == 0 return false, .{};
+    // check if name hasn't been added to names
+    if name.count > 0 then array_add(*names, copy_string(to_string(name)));
+    // check if no notes
+    if names.count == 0 return false, .[];
 
-    note := Note.{
-        name = to_string(name),
-        text = to_string(text),
-        line = line_number,
-    };
-    line_number += 1;
+    notes: [..]Note;
+    text_string := to_string(text);
+    for name: names {
+        note := Note.{
+            name = name,
+            text = text_string,
+            line = line_number,
+        };
+        array_add(*notes, note);
+    }
 
-    return true, note;
+    return true, notes;
 }
 
 #import "Hash_Table";
